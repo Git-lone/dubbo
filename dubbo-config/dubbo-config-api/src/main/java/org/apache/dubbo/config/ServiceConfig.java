@@ -341,6 +341,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                     // should not register by default
                     doExport(RegisterTypeEnum.MANUAL_REGISTER);
                 } else {
+                    // 按照注册类型进行服务暴露
                     doExport(registerType);
                 }
             }
@@ -593,10 +594,14 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         providerModel.setDestroyRunner(getDestroyRunner());
         repository.registerProvider(providerModel);
 
+        // 获取当前服务的注册中心，返回是个list，表示可以有多个
+        // 其实就是根据配置组装成注册中心相关的URL
+        // 示例 registry://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-provider&dubbo=2.0.2&pid=7960&qos.port=22222&registry=zookeeper&timestamp=1598624821286
         List<URL> registryURLs = !Boolean.FALSE.equals(isRegister())
                 ? ConfigValidationUtils.loadRegistries(this, true)
                 : Collections.emptyList();
 
+        // 遍历多个协议，使用每个协议向注册中心注册
         for (ProtocolConfig protocolConfig : protocols) {
             String pathKey = URL.buildKey(
                     getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
@@ -605,6 +610,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 // In case user specified path, register service one more time to map it to path.
                 repository.registerService(pathKey, interfaceClass);
             }
+            // 使用一个协议向注册中心注册
             doExportUrlsFor1Protocol(protocolConfig, registryURLs, registerType);
         }
 
@@ -865,11 +871,13 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
             // export to local if the config is not remote (export to remote only when config is remote)
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
+                // 本地暴露
                 exportLocal(url);
             }
 
             // export to remote if the config is not local (export to local only when config is local)
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
+                // 远程暴露
                 // export to extra protocol is used in remote export
                 String extProtocol = url.getParameter(EXT_PROTOCOL, "");
                 List<String> protocols = new ArrayList<>();
@@ -880,7 +888,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                             .addParameter(IS_PU_SERVER_KEY, Boolean.TRUE.toString())
                             .build();
                 }
-
+                // ⭐⭐向每个注册中心进行远程暴露
                 url = exportRemote(url, registryURLs, registerType);
                 if (!isGeneric(generic) && !getScopeModel().isInternal()) {
                     MetadataUtils.publishServiceDefinition(url, providerModel.getServiceModel(), getApplicationModel());
@@ -926,6 +934,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 url = url.addParameterIfAbsent(DYNAMIC_KEY, registryURL.getParameter(DYNAMIC_KEY));
                 URL monitorUrl = ConfigValidationUtils.loadMonitor(this, registryURL);
                 if (monitorUrl != null) {
+                    // 如果有监控中心，则会添加后向其汇报
                     url = url.putAttribute(MONITOR_KEY, monitorUrl);
                 }
 
@@ -943,12 +952,12 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
                     }
                 }
-
+                // ⭐⭐暴露服务
                 doExportUrl(registryURL.putAttribute(EXPORT_KEY, url), true, registerType);
             }
 
         } else {
-
+            // 注册中心为空，直接暴露
             if (logger.isInfoEnabled()) {
                 logger.info("[SERVICE_PUBLISH][METADATA_REGISTER] Export dubbo service " + interfaceClass.getName()
                         + " to url " + url);
@@ -970,11 +979,13 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 || registerType == RegisterTypeEnum.AUTO_REGISTER_BY_DEPLOYER) {
             url = url.addParameter(REGISTER_KEY, false);
         }
-
+        // 拿具体实现类封装成 invoker，
         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
         if (withMetaData) {
+            // 如果有元数据，那就和元数据一起封装
             invoker = new DelegateProviderMetaDataInvoker(invoker, this);
         }
+        // 再封装一下转成exporter
         Exporter<?> exporter = protocolSPI.export(invoker);
         ConcurrentHashMapUtils.computeIfAbsent(exporters, registerType, k -> new CopyOnWriteArrayList<>())
                 .add(exporter);
