@@ -339,6 +339,7 @@ public class DubboProtocol extends AbstractProtocol {
 
         // export service.
         String key = serviceKey(url);
+        // 使用 DubboExporter进行服务暴露
         DubboExporter<T> exporter = new DubboExporter<>(invoker, key, exporterMap);
 
         // export a stub service for dispatching event
@@ -357,8 +358,9 @@ public class DubboProtocol extends AbstractProtocol {
                 }
             }
         }
-
+        // ⭐⭐⭐⭐⭐ 开启服务
         openServer(url);
+        // 优化序列化方式
         optimizeSerialization(url);
 
         return exporter;
@@ -377,6 +379,7 @@ public class DubboProtocol extends AbstractProtocol {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        // ⭐⭐⭐ createServer(url) 创建网络服务器
                         serverMap.put(key, createServer(url));
                         return;
                     }
@@ -402,7 +405,7 @@ public class DubboProtocol extends AbstractProtocol {
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
-
+        // ⭐⭐ DEFAULT_REMOTING_CLIENT 默认使用的是 netty 框架
         String transporter = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
         if (StringUtils.isNotEmpty(transporter)
                 && !url.getOrDefaultFrameworkModel()
@@ -413,6 +416,7 @@ public class DubboProtocol extends AbstractProtocol {
 
         ExchangeServer server;
         try {
+            // ⭐⭐⭐⭐⭐ 将url绑定到请求交换组件Exchangers中，返回ExchangeServer（封装了NettyServer），这个组件会被发布出去
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);

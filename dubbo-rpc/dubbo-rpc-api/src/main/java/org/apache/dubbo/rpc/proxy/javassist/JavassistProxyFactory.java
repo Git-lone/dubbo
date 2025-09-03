@@ -86,12 +86,14 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
                 @Override
                 protected Object doInvoke(T proxy, String methodName, Class<?>[] parameterTypes, Object[] arguments)
                         throws Throwable {
+                    // 真正的invoker后续被调用的时候，一定会执行到这里，去调用实际的实现类
                     return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
                 }
             };
         } catch (Throwable fromJavassist) {
             // try fall back to JDK proxy factory
             try {
+                // 使用 jdk动态代理进行兜底调用
                 Invoker<T> invoker = jdkProxyFactory.getInvoker(proxy, type, url);
                 logger.error(
                         PROXY_FAILED,

@@ -43,6 +43,10 @@ public class PortUnificationExchanger {
         ConcurrentHashMapUtils.computeIfAbsent(servers, url.getAddress(), addr -> {
             final AbstractPortUnificationServer server;
             try {
+                // 继续bind，getTransporter会返回NettyPortUnificationTransporter
+                // ⭐⭐⭐⭐⭐ bind方法底层会通过构造方法进行nettyServer开启 doOpen() -> nettyServer
+                // {@link org.apache.dubbo.remoting.transport.AbstractServer.AbstractServer}
+                // 使用的是 netty4技术
                 server = getTransporter(url).bind(url, handler);
             } catch (RemotingException e) {
                 throw new RuntimeException(e);

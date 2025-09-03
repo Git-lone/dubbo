@@ -567,7 +567,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls(RegisterTypeEnum registerType) {
+        // getScopeModel()方法获取到的ModuleModel是一个组件，内部封装了很多其他的组件（门面模式）
+        // ModuleServiceRepository 是一个组件，用于存储服务模块
         ModuleServiceRepository repository = getScopeModel().getServiceRepository();
+        // ServiceDescriptor 用于封装服务，类似于BeanDefinitionHolder
         ServiceDescriptor serviceDescriptor;
         final boolean serverService = ref instanceof ServerService;
         if (serverService) {
@@ -580,6 +583,8 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         } else {
             serviceDescriptor = repository.registerService(getInterfaceClass());
         }
+
+        // ProviderModel也是一个组件，用于发布服务
         providerModel = new ProviderModel(
                 serviceMetadata.getServiceKey(),
                 ref,
@@ -610,7 +615,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 // In case user specified path, register service one more time to map it to path.
                 repository.registerService(pathKey, interfaceClass);
             }
-            // 使用一个协议向注册中心注册
+            // ⭐⭐⭐ 使用一个协议向注册中心注册
             doExportUrlsFor1Protocol(protocolConfig, registryURLs, registerType);
         }
 
@@ -625,7 +630,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         map.keySet().removeIf(key -> StringUtils.isEmpty(key) || StringUtils.isEmpty(map.get(key)));
         // init serviceMetadata attachments
         serviceMetadata.getAttachments().putAll(map);
-
+        // ⭐ 构建url
         URL url = buildUrl(protocolConfig, map);
 
         processServiceExecutor(url);
@@ -633,6 +638,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (CollectionUtils.isEmpty(registryURLs)) {
             registerType = RegisterTypeEnum.NEVER_REGISTER;
         }
+        // ⭐⭐⭐ 发布url
         exportUrl(url, registryURLs, registerType);
 
         initServiceMethodMetrics(url);
@@ -871,24 +877,25 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
             // export to local if the config is not remote (export to remote only when config is remote)
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
-                // 本地暴露
+                // ⭐ 本地发布服务
                 exportLocal(url);
             }
 
             // export to remote if the config is not local (export to local only when config is local)
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
-                // 远程暴露
+                // ⭐ 远程发布服务
                 // export to extra protocol is used in remote export
                 String extProtocol = url.getParameter(EXT_PROTOCOL, "");
                 List<String> protocols = new ArrayList<>();
 
                 if (StringUtils.isNotBlank(extProtocol)) {
+                    // 这里会先暴露源url，使用的是url本身的协议
                     // export original url
                     url = URLBuilder.from(url)
                             .addParameter(IS_PU_SERVER_KEY, Boolean.TRUE.toString())
                             .build();
                 }
-                // ⭐⭐向每个注册中心进行远程暴露
+                // ⭐⭐⭐ 向每个注册中心进行远程发布服务
                 url = exportRemote(url, registryURLs, registerType);
                 if (!isGeneric(generic) && !getScopeModel().isInternal()) {
                     MetadataUtils.publishServiceDefinition(url, providerModel.getServiceModel(), getApplicationModel());
@@ -898,6 +905,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                     String[] extProtocols = extProtocol.split(",", -1);
                     protocols.addAll(Arrays.asList(extProtocols));
                 }
+                // 对每个协议，都会进行远程发布
                 // export extra protocols
                 for (String protocol : protocols) {
                     if (StringUtils.isNotBlank(protocol)) {
@@ -946,18 +954,19 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
                 if (logger.isInfoEnabled()) {
                     if (url.getParameter(REGISTER_KEY, true)) {
+                        // 即将开始注册服务
                         logger.info("[INSTANCE_REGISTER] Register dubbo service " + interfaceClass.getName() + " url "
                                 + url + " to registry " + registryURL.getAddress());
                     } else {
                         logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
                     }
                 }
-                // ⭐⭐暴露服务
+                // ⭐⭐ 发布服务，注意：方法url被封装进了registryURL
                 doExportUrl(registryURL.putAttribute(EXPORT_KEY, url), true, registerType);
             }
 
         } else {
-            // 注册中心为空，直接暴露
+            // 注册中心为空，直接发布
             if (logger.isInfoEnabled()) {
                 logger.info("[SERVICE_PUBLISH][METADATA_REGISTER] Export dubbo service " + interfaceClass.getName()
                         + " to url " + url);
@@ -979,14 +988,20 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 || registerType == RegisterTypeEnum.AUTO_REGISTER_BY_DEPLOYER) {
             url = url.addParameter(REGISTER_KEY, false);
         }
-        // 拿具体实现类封装成 invoker，
+        // ⭐⭐ 通过代理，拿具体实现类封装成 invoker
+        // Invoker 是一个动态代理调用组件，当dubbo的netty server对外网络监听到连接，处理请求，必须要对请求有一个调用组件
+        // ProxyFactory 基于接口生成动态代理，被调用接口的时候，底层会回调实现类
+        // dubbo 使用的是Javassist生成动态代理，对比字节码的方式，效率更高
+        // {@link org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory.getInvoker}
         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
         if (withMetaData) {
-            // 如果有元数据，那就和元数据一起封装
+            // 如果有元数据，那就和元数据一起封装，DelegateProviderMetaDataInvoker就是用来将invoker和元数据一起封装的
             invoker = new DelegateProviderMetaDataInvoker(invoker, this);
         }
-        // 再封装一下转成exporter
+        // ⭐⭐⭐⭐⭐ 通过协议拓展接口Protocol，封装转成exporter，这里使用了Dubbo的spi机制，由@Adaptive动态，默认是DubboProtocol
+        // RegisterProtocol会先执行，先去做服务注册的事情，接着再执行DubboProtocol，启动NettyServer作为网络服务器
         Exporter<?> exporter = protocolSPI.export(invoker);
+        // 后续有请求进来，通过protocol可以拿到一个invoker
         ConcurrentHashMapUtils.computeIfAbsent(exporters, registerType, k -> new CopyOnWriteArrayList<>())
                 .add(exporter);
     }
@@ -996,12 +1011,14 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
      */
     private void exportLocal(URL url) {
         URL local = URLBuilder.from(url)
+                // 本地发布服务使用的是injvm协议
                 .setProtocol(LOCAL_PROTOCOL)
                 .setHost(LOCALHOST_VALUE)
                 .setPort(0)
                 .build();
         local = local.setScopeModel(getScopeModel()).setServiceModel(providerModel);
         local = local.addParameter(EXPORTER_LISTENER_KEY, LOCAL_PROTOCOL);
+        // 这里和远程发布调用的是同一个方法
         doExportUrl(local, false, RegisterTypeEnum.AUTO_REGISTER);
         logger.info("[SERVICE_PUBLISH][METADATA_REGISTER] Export dubbo service " + interfaceClass.getName()
                 + " to local registry url : " + local);

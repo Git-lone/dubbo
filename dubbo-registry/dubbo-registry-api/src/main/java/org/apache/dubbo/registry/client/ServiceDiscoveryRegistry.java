@@ -162,6 +162,7 @@ public class ServiceDiscoveryRegistry extends FailbackRegistry {
         if (!shouldRegister(url)) { // Should Not Register
             return;
         }
+        // ⭐ 执行服务注册
         doRegister(url);
     }
 

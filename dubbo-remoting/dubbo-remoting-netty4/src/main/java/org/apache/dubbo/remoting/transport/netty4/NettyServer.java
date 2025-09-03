@@ -94,6 +94,7 @@ public class NettyServer extends AbstractServer {
      */
     @Override
     protected void doOpen() throws Throwable {
+        // ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ dubbo是怎么使用netty的
         bootstrap = new ServerBootstrap();
 
         // initialize serverShutdownTimeoutMills before potential usage to avoid NPE.
@@ -106,6 +107,7 @@ public class NettyServer extends AbstractServer {
         final NettyServerHandler nettyServerHandler = createNettyServerHandler();
         channels = nettyServerHandler.getChannels();
 
+        // ⭐⭐⭐ 组装
         initServerBootstrap(nettyServerHandler);
 
         // bind

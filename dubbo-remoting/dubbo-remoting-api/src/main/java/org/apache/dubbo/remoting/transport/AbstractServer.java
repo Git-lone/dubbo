@@ -58,9 +58,11 @@ public abstract class AbstractServer extends AbstractEndpoint implements Remotin
         if (url.getParameter(ANYHOST_KEY, false) || NetUtils.isInvalidLocalHost(bindIp)) {
             bindIp = ANYHOST_VALUE;
         }
+        // 根据ip和port封装成InetSocketAddress
         bindAddress = new InetSocketAddress(bindIp, bindPort);
         this.accepts = url.getParameter(ACCEPTS_KEY, DEFAULT_ACCEPTS);
         try {
+            // ⭐⭐⭐⭐⭐ 开启服务，里面就是 netty 框架的东西了
             doOpen();
             if (logger.isInfoEnabled()) {
                 logger.info("[SERVICE_PUBLISH][METADATA_REGISTER] Start "

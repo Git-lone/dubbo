@@ -255,6 +255,7 @@ public class RegistryProtocol implements Protocol, ScopeModelAware {
                             1,
                             Collections.singletonList(registryName)),
                     () -> {
+                        // ⭐⭐⭐ 服务注册
                         registry.register(registeredProviderUrl);
                         return null;
                     });
@@ -290,15 +291,19 @@ public class RegistryProtocol implements Protocol, ScopeModelAware {
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
+        // 获取注册中心，可以打断点看一下
         final Registry registry = getRegistry(registryUrl);
+        // 这里可以理解为设置了一些自定义参数到 providerUrl 中
         final URL registeredProviderUrl = customizeURL(providerUrl, registryUrl);
 
         // decide if we need to delay publish (provider itself and registry should both need to register)
         boolean register = providerUrl.getParameter(REGISTER_KEY, true) && registryUrl.getParameter(REGISTER_KEY, true);
         if (register) {
+            // ⭐⭐⭐ 注册服务
             register(registry, registeredProviderUrl);
         }
 
+        // 以服务提供者的方式增加已注册发布的url
         // register stated url on provider model
         registerStatedUrl(registryUrl, registeredProviderUrl, register);
 
@@ -314,10 +319,12 @@ public class RegistryProtocol implements Protocol, ScopeModelAware {
                 .convert(Boolean.class, ENABLE_26X_CONFIGURATION_LISTEN, true)) {
             if (!registry.isServiceDiscovery()) {
                 // Deprecated! Subscribe to override rules in 2.6.x or before.
+                // 服务订阅
                 registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
             }
         }
 
+        // 通知监听器服务已注册
         notifyExport(exporter);
         // Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<>(exporter);
