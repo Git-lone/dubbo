@@ -168,11 +168,12 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             if (isStarting() || isStarted() || isCompletion()) {
                 return startFuture;
             }
-
+            // 启动模块
             onModuleStarting();
 
             initialize();
 
+            // ⭐⭐⭐发布服务
             // export services
             exportServices();
 
@@ -463,6 +464,7 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
     private void exportServiceInternal(ServiceConfigBase sc) {
         ServiceConfig<?> serviceConfig = (ServiceConfig<?>) sc;
         if (!serviceConfig.isRefreshed()) {
+            // ⭐ 刷新配置，这里会重写Dubbo的配置属性
             serviceConfig.refresh();
         }
         if (sc.isExported()) {
@@ -474,6 +476,7 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
                     () -> {
                         try {
                             if (!sc.isExported()) {
+                                // ⭐ 发布服务
                                 sc.export();
                                 exportedServices.add(sc);
                             }

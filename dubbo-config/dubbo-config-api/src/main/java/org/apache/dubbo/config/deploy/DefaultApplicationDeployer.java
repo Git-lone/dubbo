@@ -704,7 +704,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
                 onStarting();
 
                 initialize();
-
+                // 开始启动模块
                 doStart();
             } catch (Throwable e) {
                 onFailed(getIdentifier() + " start failure", e);
@@ -732,6 +732,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
     }
 
     private void doStart() {
+        // 启动模块
         startModules();
 
         // prepare application instance
@@ -764,6 +765,13 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
     private void startModules() {
         // ensure init and start internal module first
         prepareInternalModule();
+
+        // ModuleModel又称服务模型，可以看成一个组件，里面封装了很多其他组件（门面模式）如
+        // ApplicationModel 包括许多关于已发布服务的 ProviderModel 和许多关于订阅服务的消费者模型
+        // ModuleServiceRepository 模块的服务存储库
+        // ModuleConfigManager 管理模块的配置
+        // ModuleDeployer 模块的导出/参考服务
+        // 在后续的代码中有很多 moduleModel.getXXX().doXXX()的方法，理解这些组件的关系及作用对阅读源码很重要
 
         // filter and start pending modules, ignore new module during starting, throw exception of module start
         for (ModuleModel moduleModel : applicationModel.getModuleModels()) {

@@ -133,8 +133,10 @@ public class ModuleServiceRepository {
                     .filter(s -> s.getServiceInterfaceClass().equals(interfaceClazz))
                     .findFirst();
             if (previous.isPresent()) {
+                // 如果当前接口已经注册过，直接返回
                 return previous.get();
             } else {
+                // 如果当前接口没有注册过，添加到服务描述符列表中
                 serviceDescriptors.add(serviceDescriptor);
                 return serviceDescriptor;
             }

@@ -341,7 +341,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                     // should not register by default
                     doExport(RegisterTypeEnum.MANUAL_REGISTER);
                 } else {
-                    // 按照注册类型进行服务暴露
+                    // ⭐ 按照注册类型进行服务暴露
                     doExport(registerType);
                 }
             }
@@ -561,6 +561,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
+        // 发布URL
         doExportUrls(registerType);
         exported();
     }
@@ -574,6 +575,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         ServiceDescriptor serviceDescriptor;
         final boolean serverService = ref instanceof ServerService;
         if (serverService) {
+            // 如果引用是服务类型，进行服务注册，其实就是添加到服务描述符列表中，后续会进行真正的注册
             serviceDescriptor = ((ServerService) ref).getServiceDescriptor();
             if (!this.provider.getUseJavaPackageAsPath()) {
                 // for stub service, path always interface name or IDL package name
@@ -608,6 +610,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         // 遍历多个协议，使用每个协议向注册中心注册
         for (ProtocolConfig protocolConfig : protocols) {
+            // 构造path，其实就是接口名称，可以打断点看一下具体值
             String pathKey = URL.buildKey(
                     getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             // stub service will use generated service name
@@ -615,7 +618,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 // In case user specified path, register service one more time to map it to path.
                 repository.registerService(pathKey, interfaceClass);
             }
-            // ⭐⭐⭐ 使用一个协议向注册中心注册
+            // ⭐⭐⭐ 使用一个协议向注册中心注册当前URL
             doExportUrlsFor1Protocol(protocolConfig, registryURLs, registerType);
         }
 
@@ -633,6 +636,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // ⭐ 构建url
         URL url = buildUrl(protocolConfig, map);
 
+        // 将启动服务的线程添加到URL的属性集attributes中
         processServiceExecutor(url);
 
         if (CollectionUtils.isEmpty(registryURLs)) {

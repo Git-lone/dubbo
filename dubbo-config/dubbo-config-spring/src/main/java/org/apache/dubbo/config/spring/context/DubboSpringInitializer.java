@@ -108,6 +108,7 @@ public class DubboSpringInitializer {
         // customize context, you can change the bind module model via DubboSpringInitCustomizer SPI
         customize(context);
 
+        // 初始化服务模型
         // init ModuleModel
         ModuleModel moduleModel = context.getModuleModel();
         if (moduleModel == null) {

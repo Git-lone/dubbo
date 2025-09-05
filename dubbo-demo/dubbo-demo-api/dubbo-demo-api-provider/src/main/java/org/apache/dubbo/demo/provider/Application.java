@@ -50,6 +50,7 @@ public class Application {
                 .metadataReport(new MetadataReportConfig(ZOOKEEPER_URL))
                 .protocol(new ProtocolConfig(CommonConstants.DUBBO, -1))
                 .service(service)
+                // ⭐⭐⭐ dubbo服务启动入口
                 .start()
                 .await();
     }
